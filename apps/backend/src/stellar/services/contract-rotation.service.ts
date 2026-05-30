@@ -1,9 +1,13 @@
+import { Injectable, InternalServerErrorException } from '@nestjs/common';
 import {
-  Injectable,
-  BadRequestException,
-  InternalServerErrorException,
-} from '@nestjs/common';
-import { StrKey, Contract, Keypair, Account, TransactionBuilder, BASE_FEE, rpc } from '@stellar/stellar-sdk';
+  StrKey,
+  Contract,
+  Keypair,
+  Account,
+  TransactionBuilder,
+  BASE_FEE,
+  rpc,
+} from '@stellar/stellar-sdk';
 import { config } from '../../lib/config';
 import { ContractValidationResultDto } from '../dto/rotate-contract-ids.dto';
 
@@ -72,22 +76,23 @@ export class ContractRotationService {
       }
     }
 
-    // If format validation failed, return early
-    if (results.some((r) => !r.isValid)) {
-      return results;
-    }
+    // Continue to on-chain validation for IDs that passed format checks.
+    // Format errors are already recorded in `results` and will be
+    // returned alongside on-chain validation results.
 
     // Load simulation context for on-chain validation
     let context: SimulationContext | null = null;
     try {
       context = await this.loadSimulationContext(network);
     } catch (error) {
-      // If we can't load the context, we can't validate on-chain
-      const errorMsg = error instanceof Error ? error.message : String(error);
-      throw new InternalServerErrorException(
-        `Failed to connect to Soroban RPC for validation: ${errorMsg}`,
-      );
+      // If we can't load the context, continue but mark on-chain
+      // validation as unavailable. Do not throw — tests and callers
+      // should receive format validation results even when RPC is down.
+      context = null;
     }
+
+    // Prepare set of names that already failed format validation
+    const formatErrorNames = new Set(results.filter((r) => !r.isValid).map((r) => r.name));
 
     // Validate each contract by simulating a read call
     for (const [name, id] of Object.entries(contractIds)) {
@@ -95,8 +100,18 @@ export class ContractRotationService {
         continue;
       }
 
+      // Skip on-chain validation for entries that already failed format checks
+      if (formatErrorNames.has(name)) {
+        continue;
+      }
+
       try {
-        const methods = CONTRACT_VALIDATION_METHODS[name as ContractName] || ['get_admin'];
+        if (!context) {
+          // Can't perform on-chain simulation; report as not validated
+          results.push({ name, isValid: false, error: 'Soroban RPC unavailable' });
+          continue;
+        }
+        const methods = CONTRACT_VALIDATION_METHODS[name] || ['get_admin'];
         let methodValid = false;
         let lastError: string | undefined;
 
@@ -108,7 +123,9 @@ export class ContractRotationService {
             break; // Success, no need to try other methods
           } catch (methodError) {
             lastError =
-              methodError instanceof Error ? methodError.message : String(methodError);
+              methodError instanceof Error
+                ? methodError.message
+                : String(methodError);
           }
         }
 
@@ -202,7 +219,9 @@ export class ContractRotationService {
     }
 
     if (!simulation.result) {
-      throw new Error(`Simulation failed for method '${method}': No result returned`);
+      throw new Error(
+        `Simulation failed for method '${method}': No result returned`,
+      );
     }
   }
 

@@ -1,8 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { BadRequestException, InternalServerErrorException } from '@nestjs/common';
+import { InternalServerErrorException } from '@nestjs/common';
 import { StrKey } from '@stellar/stellar-sdk';
 import { ContractRotationService } from './contract-rotation.service';
-import { config } from '../../lib/config';
 
 describe('ContractRotationService', () => {
   let service: ContractRotationService;
@@ -20,7 +19,7 @@ describe('ContractRotationService', () => {
       const validId = StrKey.encodeContract(Buffer.alloc(32));
       const results = await service.validateContractIds(
         { lumenToken: validId },
-        'testnet'
+        'testnet',
       );
 
       expect(Array.isArray(results)).toBe(true);
@@ -32,7 +31,7 @@ describe('ContractRotationService', () => {
       const invalidId = 'INVALID_CONTRACT_ID_XYZ';
       const results = await service.validateContractIds(
         { lumenToken: invalidId },
-        'testnet'
+        'testnet',
       );
 
       expect(results[0].isValid).toBe(false);
@@ -54,7 +53,7 @@ describe('ContractRotationService', () => {
           crowdfundVault: validId,
           projectRegistry: validId,
         },
-        'testnet'
+        'testnet',
       );
 
       expect(results.length).toBe(3);
@@ -70,7 +69,7 @@ describe('ContractRotationService', () => {
           lumenToken: validId,
           crowdfundVault: invalidId,
         },
-        'testnet'
+        'testnet',
       );
 
       expect(results.length).toBe(2);
@@ -90,7 +89,7 @@ describe('ContractRotationService', () => {
           lumenToken: validId,
           crowdfundVault: undefined,
         },
-        'testnet'
+        'testnet',
       );
 
       // Should only validate provided IDs
@@ -104,7 +103,7 @@ describe('ContractRotationService', () => {
       // In a real scenario, this might fail due to network issues
       const results = await service.validateContractIds(
         { lumenToken: validId },
-        'testnet'
+        'testnet',
       );
 
       expect(Array.isArray(results)).toBe(true);
@@ -120,11 +119,11 @@ describe('ContractRotationService', () => {
 
       const testnetResults = await service.validateContractIds(
         { lumenToken: validId },
-        'testnet'
+        'testnet',
       );
       const mainnetResults = await service.validateContractIds(
         { lumenToken: validId },
-        'mainnet'
+        'mainnet',
       );
 
       expect(Array.isArray(testnetResults)).toBe(true);
@@ -139,7 +138,7 @@ describe('ContractRotationService', () => {
       // This is verified indirectly through the validation results
       const results = await service.validateContractIds(
         { lumenToken: validId },
-        'testnet'
+        'testnet',
       );
 
       expect(results[0].name).toBe('lumenToken');
@@ -150,7 +149,7 @@ describe('ContractRotationService', () => {
       // The service uses 'get_admin' for crowdfundVault validation
       const results = await service.validateContractIds(
         { crowdfundVault: validId },
-        'testnet'
+        'testnet',
       );
 
       expect(results[0].name).toBe('crowdfundVault');
@@ -169,7 +168,7 @@ describe('ContractRotationService', () => {
 
       const results = await service.validateContractIds(
         contractUpdates,
-        'testnet'
+        'testnet',
       );
 
       expect(results.length).toBe(6);
@@ -194,7 +193,7 @@ describe('ContractRotationService', () => {
       try {
         const results = await service.validateContractIds(
           { lumenToken: validId },
-          'testnet'
+          'testnet',
         );
         // Should return results even if on-chain validation fails
         expect(Array.isArray(results)).toBe(true);
@@ -210,12 +209,12 @@ describe('ContractRotationService', () => {
           lumenToken: 'SHORT',
           crowdfundVault: 'INVALID_CONTRACT_FORMAT',
         },
-        'testnet'
+        'testnet',
       );
 
       // Format validation should return results immediately
       const formatErrors = results.filter((r) =>
-        r.error?.includes('Invalid contract ID format')
+        r.error?.includes('Invalid contract ID format'),
       );
       expect(formatErrors.length).toBeGreaterThan(0);
     });

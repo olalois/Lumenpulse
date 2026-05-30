@@ -1,4 +1,4 @@
-import { Injectable, BadRequestException, Inject } from '@nestjs/common';
+import { Injectable, Inject, BadRequestException } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import type { ConfigType } from '@nestjs/config';
 import stellarConfig from '../config/stellar.config';
@@ -72,10 +72,11 @@ export class StellarContractRotationService {
     }
 
     // Step 1: Validate all new contract IDs before making any changes
-    const validationResults = await this.contractRotationService.validateContractIds(
-      updates,
-      'testnet', // Always validate against testnet during rotation
-    );
+    const validationResults =
+      await this.contractRotationService.validateContractIds(
+        updates,
+        'testnet', // Always validate against testnet during rotation
+      );
 
     const invalidResults = validationResults.filter((r) => !r.isValid);
     if (invalidResults.length > 0) {
@@ -87,34 +88,57 @@ export class StellarContractRotationService {
       );
     }
 
-    // Step 2: Persist changes using environment variable updates
-    // Note: In production, environment variables would be updated via a configuration
-    // management system (e.g., managed environment, cloud provider, or config service).
-    // This implementation provides a transactional wrapper for the actual rotation.
-    const updatedContracts = await this.applyContractUpdates(updates);
+    // Step 2: Prepare previous values for rollback if needed
+    const previousValues = this.getPreviousContractValues(contractNames);
 
-    // Step 3: Create audit log entry
-    const auditLog = await this.auditService.log(
-      'contracts.rotate_testnet',
-      userId,
-      ipAddress,
-      {
+    // Step 3: Create audit log entry first, then apply updates. If applying
+    // updates or invalidating cache fails, rollback overrides and delete the
+    // created audit log so the operation is atomic from the client's view.
+    let auditLogRecord: any = null;
+    const updatedContracts = this.applyContractUpdates(updates);
+
+    try {
+      auditLogRecord = await this.auditService.log(
+        'contracts.rotate_testnet',
+        userId,
+        ipAddress,
+        {
+          updatedContracts,
+          reason: reason || null,
+          previousValues,
+          contractCount: contractNames.length,
+        },
+      );
+
+      // Invalidate config cache so clients get updated values
+      await this.configService.invalidateCache();
+
+      return {
+        message: 'Contracts rotated successfully',
         updatedContracts,
-        reason: reason || null,
-        previousValues: this.getPreviousContractValues(contractNames),
-        contractCount: contractNames.length,
-      },
-    );
+        auditLogId: auditLogRecord.id,
+        rotatedAt: auditLogRecord.createdAt,
+      };
+    } catch (err) {
+      // Attempt to rollback applied runtime overrides
+      try {
+        this.configService.setStellarContractOverrides(previousValues);
+        await this.configService.invalidateCache();
+      } catch (rollbackErr) {
+        // Log rollback failure to monitoring in real deployments; rethrow original
+      }
 
-    // Step 4: Invalidate config cache so clients get updated values
-    await this.configService.invalidateCache();
+      // If audit log was created, delete it to avoid stale audit entries
+      if (auditLogRecord && auditLogRecord.id) {
+        try {
+          await this.auditService.delete(auditLogRecord.id);
+        } catch (deleteErr) {
+          // If deletion fails, there's not much we can do here synchronously.
+        }
+      }
 
-    return {
-      message: 'Contracts rotated successfully',
-      updatedContracts,
-      auditLogId: auditLog.id,
-      rotatedAt: auditLog.createdAt,
-    };
+      throw err;
+    }
   }
 
   /**
@@ -132,17 +156,13 @@ export class StellarContractRotationService {
 
     for (const [key, value] of Object.entries(updates)) {
       if (value) {
-        const contractName = key as ContractName;
-        // In production, this would persist to a configuration store
-        // For now, we update the in-memory config
-        const contracts = this.stellarCfg.contracts as Record<
-          ContractName,
-          string | null
-        >;
-        contracts[contractName] = value;
-        updated[key] = value;
+        updated[key] = value as string;
       }
     }
+
+    // Persist runtime overrides via ConfigService so we don't mutate the
+    // frozen global config object exported from lib/config.ts.
+    this.configService.setStellarContractOverrides(updated);
 
     return updated;
   }
@@ -153,9 +173,14 @@ export class StellarContractRotationService {
    * @param contractNames - Names of contracts being updated
    * @returns Map of contract names to their current IDs
    */
-  private getPreviousContractValues(contractNames: ContractName[]): Record<string, string | null> {
+  private getPreviousContractValues(
+    contractNames: ContractName[],
+  ): Record<string, string | null> {
     const previous: Record<string, string | null> = {};
-    const contracts = this.stellarCfg.contracts as Record<ContractName, string | null>;
+    const contracts = this.stellarCfg.contracts as Record<
+      ContractName,
+      string | null
+    >;
 
     for (const name of contractNames) {
       previous[name] = contracts[name] ?? null;

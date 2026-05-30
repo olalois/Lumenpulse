@@ -17,7 +17,15 @@ import { AppConfigModule } from '../config/config.module';
     AppConfigModule,
   ],
   controllers: [StellarController],
-  providers: [StellarService, ContractRotationService, StellarContractRotationService],
-  exports: [StellarService, ContractRotationService, StellarContractRotationService],
+  providers: [
+    StellarService,
+    ContractRotationService,
+    StellarContractRotationService,
+  ],
+  exports: [
+    StellarService,
+    ContractRotationService,
+    StellarContractRotationService,
+  ],
 })
 export class StellarModule {}

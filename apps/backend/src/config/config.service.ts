@@ -27,8 +27,14 @@ export class ConfigService {
     private cacheManager: Cache,
   ) {}
 
+  // In-memory overrides for runtime-updated Stellar contract IDs.
+  // Stored separately from the frozen global `config` object so they
+  // can be updated at runtime without mutating the frozen config.
+  private contractOverrides: Record<string, string | null> = {};
+
   getStellarConfig(): StellarConfigResponseDto {
     const network = this.stellarCfg.network;
+    const overrides = this.contractOverrides || {};
 
     return {
       network,
@@ -37,15 +43,43 @@ export class ConfigService {
         config.stellar.sorobanRpcUrl ?? DEFAULT_SOROBAN_RPC_URLS[network],
       networkPassphrase: NETWORK_PASSPHRASES[network],
       contracts: {
-        lumenToken: config.stellar.contracts.lumenToken ?? null,
-        crowdfundVault: config.stellar.contracts.crowdfundVault ?? null,
-        projectRegistry: config.stellar.contracts.projectRegistry ?? null,
+        lumenToken:
+          (overrides.lumenToken as string | undefined) ??
+          config.stellar.contracts.lumenToken ??
+          null,
+        crowdfundVault:
+          (overrides.crowdfundVault as string | undefined) ??
+          config.stellar.contracts.crowdfundVault ??
+          null,
+        projectRegistry:
+          (overrides.projectRegistry as string | undefined) ??
+          config.stellar.contracts.projectRegistry ??
+          null,
         contributorRegistry:
-          config.stellar.contracts.contributorRegistry ?? null,
-        matchingPool: config.stellar.contracts.matchingPool ?? null,
-        treasury: config.stellar.contracts.treasury ?? null,
+          (overrides.contributorRegistry as string | undefined) ??
+          config.stellar.contracts.contributorRegistry ??
+          null,
+        matchingPool:
+          (overrides.matchingPool as string | undefined) ??
+          config.stellar.contracts.matchingPool ??
+          null,
+        treasury:
+          (overrides.treasury as string | undefined) ??
+          config.stellar.contracts.treasury ??
+          null,
       },
     };
+  }
+
+  /**
+   * Apply runtime overrides for Stellar contract IDs. This does not mutate
+   * the frozen global config object — overrides are stored in-memory and
+   * merged when serving the client-facing config endpoint.
+   */
+  setStellarContractOverrides(updates: Record<string, string>): void {
+    for (const [k, v] of Object.entries(updates)) {
+      this.contractOverrides[k] = v ?? null;
+    }
   }
 
   /**
