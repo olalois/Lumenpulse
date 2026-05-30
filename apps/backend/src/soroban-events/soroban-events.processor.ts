@@ -9,6 +9,7 @@ import {
 } from './entities/soroban-event.entity';
 import { IngestSorobanEventDto } from './dto/ingest-soroban-event.dto';
 import {
+  SorobanEventsService, 
   SOROBAN_EVENTS_QUEUE,
   PROCESS_EVENT_JOB,
 } from './soroban-events.service';
@@ -21,6 +22,8 @@ export class SorobanEventsProcessor extends WorkerHost {
   constructor(
     @InjectRepository(SorobanEvent)
     private readonly eventRepo: Repository<SorobanEvent>,
+    
+    private readonly sorobanEventsService: SorobanEventsService,
   ) {
     super();
   }
@@ -33,7 +36,7 @@ export class SorobanEventsProcessor extends WorkerHost {
 
     const { txHash, eventIndex, contractId, eventType, rawPayload } = job.data;
 
-    // Idempotency: skip if already stored (unique index on txHash + eventIndex)
+    
     const existing = await this.eventRepo.findOne({
       where: { txHash, eventIndex },
       select: ['id', 'status'],
@@ -60,7 +63,26 @@ export class SorobanEventsProcessor extends WorkerHost {
     await this.eventRepo.save(event);
 
     try {
-      // placeholder for downstream processing (e.g. trigger notifications, update state)
+      
+      if (contractId === process.env.PROJECT_REGISTRY_CONTRACT_ID) {
+        
+        // Map the parsed JSON payload to the format expected by the sync service.
+        // Note: Adjust the keys mapped from `rawPayload` if your ingestor names them differently!
+        const projectData = {
+          projectId: rawPayload?.projectId || rawPayload?.id,
+          owner: rawPayload?.owner,
+          name: rawPayload?.name,
+          metadataCid: rawPayload?.metadataCid,
+          ledgerSeq: rawPayload?.ledgerSeq || 0, // Fallback if ledgerSeq isn't strictly in the payload
+          txHash: txHash
+        };
+
+        
+        await this.sorobanEventsService.syncProjectRegistryEvent(projectData);
+        this.logger.log(`Project Registry sync successful for tx ${txHash}`);
+      }
+      
+
       event.status = SorobanEventStatus.PROCESSED;
       event.processedAt = new Date();
     } catch (err) {
