@@ -51,6 +51,7 @@ import { z } from 'zod';
  * - TELEGRAM_BOT_TOKEN
  * - METRICS_ALLOWED_IPS
  * - USE_MOCK_TRANSACTIONS
+ * - BOOTSTRAP_DEMO_DATA_ENABLED
  * - LOGGING_ENABLED
  * - LOGGING_LEVEL
  * - LOGGING_INCLUDE_BODY
@@ -460,6 +461,10 @@ const envSchema = z
     USE_MOCK_TRANSACTIONS: z.preprocess(
       parseBoolean,
       z.boolean().default(true),
+    ),
+    BOOTSTRAP_DEMO_DATA_ENABLED: z.preprocess(
+      parseBoolean,
+      z.boolean().default(false),
     ),
 
     LOGGING_ENABLED: z.preprocess(parseBoolean, z.boolean().default(true)),
@@ -1065,6 +1070,7 @@ export const config = Object.freeze({
   }),
   featureFlags: Object.freeze({
     useMockTransactions: parsedEnv.USE_MOCK_TRANSACTIONS,
+    bootstrapDemoData: parsedEnv.BOOTSTRAP_DEMO_DATA_ENABLED,
   }),
   portfolioSnapshot: Object.freeze({
     concurrency: parsedEnv.PORTFOLIO_SNAPSHOT_CONCURRENCY,
