@@ -287,3 +287,98 @@ fn test_rotate_beneficiary_stream_not_found() {
         Err(Ok(TreasuryError::StreamNotFound))
     );
 }
+
+#[test]
+fn test_cancel_stream_partial_claim() {
+    let env = Env::default();
+    env.budget().reset_unlimited();
+    let admin = Address::generate(&env);
+    let beneficiary = Address::generate(&env);
+    let token_contract = register_token_contract(&env, &admin);
+    let treasury_id = env.register(TreasuryContract, ());
+    let treasury_client = TreasuryContractClient::new(&env, &treasury_id);
+
+    treasury_client.initialize(&admin, &token_contract.address());
+
+    let amount = 1000i128;
+    let start_time = env.ledger().timestamp();
+    let duration = 1000u64;
+    
+    treasury_client.allocate_budget(&admin, &beneficiary, &amount, &start_time, &duration);
+    env.ledger().set_timestamp(start_time + 500);
+    
+    let claimed = treasury_client.claim(&beneficiary);
+    assert_eq!(claimed, 500);
+
+    let (claimed_total, refunded) = treasury_client.cancel_stream(&admin, &beneficiary);
+    assert_eq!(claimed_total, 500);
+    assert_eq!(refunded, 500);
+}
+
+#[test]
+fn test_cancel_stream_immediate() {
+    let env = Env::default();
+    env.budget().reset_unlimited();
+    let admin = Address::generate(&env);
+    let beneficiary = Address::generate(&env);
+    let token_contract = register_token_contract(&env, &admin);
+    let treasury_id = env.register(TreasuryContract, ());
+    let treasury_client = TreasuryContractClient::new(&env, &treasury_id);
+
+    treasury_client.initialize(&admin, &token_contract.address());
+
+    let amount = 1000i128;
+    let start_time = env.ledger().timestamp();
+    let duration = 1000u64;
+    
+    treasury_client.allocate_budget(&admin, &beneficiary, &amount, &start_time, &duration);
+
+    let (claimed, refunded) = treasury_client.cancel_stream(&admin, &beneficiary);
+    assert_eq!(claimed, 0);
+    assert_eq!(refunded, 1000);
+}
+
+#[test]
+fn test_emergency_stop_full_refund() {
+    let env = Env::default();
+    env.budget().reset_unlimited();
+    let admin = Address::generate(&env);
+    let beneficiary = Address::generate(&env);
+    let token_contract = register_token_contract(&env, &admin);
+    let treasury_id = env.register(TreasuryContract, ());
+    let treasury_client = TreasuryContractClient::new(&env, &treasury_id);
+
+    treasury_client.initialize(&admin, &token_contract.address());
+
+    let amount = 1000i128;
+    let start_time = env.ledger().timestamp();
+    let duration = 1000u64;
+    
+    treasury_client.allocate_budget(&admin, &beneficiary, &amount, &start_time, &duration);
+    env.ledger().set_timestamp(start_time + 500);
+
+    let refunded = treasury_client.emergency_stop(
+        &admin,
+        &beneficiary,
+        String::from_str(&env, "Security breach"),
+    );
+    
+    assert_eq!(refunded, 1000);
+}
+
+#[test]
+fn test_cancel_nonexistent_stream() {
+    let env = Env::default();
+    env.budget().reset_unlimited();
+    let admin = Address::generate(&env);
+    let beneficiary = Address::generate(&env);
+    let token_contract = register_token_contract(&env, &admin);
+    let treasury_id = env.register(TreasuryContract, ());
+    let treasury_client = TreasuryContractClient::new(&env, &treasury_id);
+
+    treasury_client.initialize(&admin, &token_contract.address());
+
+    let result = treasury_client.try_cancel_stream(&admin, &beneficiary);
+    assert!(result.is_err());
+}
+
