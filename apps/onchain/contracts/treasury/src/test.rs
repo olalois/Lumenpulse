@@ -145,7 +145,14 @@ fn test_rotate_beneficiary_before_claims() {
     let duration = 1000u64;
     env.ledger().set_timestamp(start_time);
 
-    treasury_client.allocate_budget(&admin, &old_beneficiary, &amount, &start_time, &duration, &request_id(&env));
+    treasury_client.allocate_budget(
+        &admin,
+        &old_beneficiary,
+        &amount,
+        &start_time,
+        &duration,
+        &request_id(&env),
+    );
 
     env.ledger().set_timestamp(start_time + 500);
 
@@ -192,7 +199,14 @@ fn test_rotate_beneficiary_after_partial_claims() {
     let duration = 1000u64;
     env.ledger().set_timestamp(start_time);
 
-    treasury_client.allocate_budget(&admin, &old_beneficiary, &amount, &start_time, &duration, &request_id(&env));
+    treasury_client.allocate_budget(
+        &admin,
+        &old_beneficiary,
+        &amount,
+        &start_time,
+        &duration,
+        &request_id(&env),
+    );
 
     env.ledger().set_timestamp(start_time + 500);
 
@@ -246,7 +260,14 @@ fn test_rotate_beneficiary_unauthorized() {
     let duration = 1000u64;
     env.ledger().set_timestamp(start_time);
 
-    treasury_client.allocate_budget(&admin, &beneficiary, &amount, &start_time, &duration, &request_id(&env));
+    treasury_client.allocate_budget(
+        &admin,
+        &beneficiary,
+        &amount,
+        &start_time,
+        &duration,
+        &request_id(&env),
+    );
 
     assert_eq!(
         treasury_client.try_rotate_beneficiary(&unauthorized, &beneficiary, &new_beneficiary),
@@ -278,7 +299,14 @@ fn test_rotate_beneficiary_same_address() {
     let duration = 1000u64;
     env.ledger().set_timestamp(start_time);
 
-    treasury_client.allocate_budget(&admin, &beneficiary, &amount, &start_time, &duration, &request_id(&env));
+    treasury_client.allocate_budget(
+        &admin,
+        &beneficiary,
+        &amount,
+        &start_time,
+        &duration,
+        &request_id(&env),
+    );
 
     assert_eq!(
         treasury_client.try_rotate_beneficiary(&admin, &beneficiary, &beneficiary),
