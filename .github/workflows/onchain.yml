@@ -3,12 +3,8 @@ name: Onchain CI
 on:
   push:
     branches: [ "main" ]
-    paths:
-      - 'apps/onchain/**'
   pull_request:
     branches: [ "main" ]
-    paths:
-      - 'apps/onchain/**'
 
 jobs:
   onchain-checks:
@@ -21,27 +17,51 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Detect onchain changes
+      id: changes
+      run: |
+        if [ "${{ github.event_name }}" = "pull_request" ]; then
+          base_sha='${{ github.event.pull_request.base.sha }}'
+          head_sha='${{ github.event.pull_request.head.sha }}'
+        else
+          base_sha='${{ github.event.before }}'
+          head_sha='${{ github.sha }}'
+        fi
+
+        if git diff --name-only "$base_sha" "$head_sha" | grep -q '^apps/onchain/'; then
+          echo 'run_checks=true' >> "$GITHUB_OUTPUT"
+        else
+          echo 'run_checks=false' >> "$GITHUB_OUTPUT"
+        fi
 
     - name: Install Rust
+      if: steps.changes.outputs.run_checks == 'true'
       uses: dtolnay/rust-toolchain@stable
       with:
         toolchain: stable
         targets: wasm32-unknown-unknown
 
     - name: Cache dependencies
+      if: steps.changes.outputs.run_checks == 'true'
       uses: Swatinem/rust-cache@v2
       with:
         workspaces: "apps/onchain"
 
     - name: Check formatting
+      if: steps.changes.outputs.run_checks == 'true'
       run: cargo fmt --all -- --check
 
     - name: Run clippy
+      if: steps.changes.outputs.run_checks == 'true'
       run: cargo clippy --all-targets --all-features -- -D warnings
 
     - name: Build Contracts
+      if: steps.changes.outputs.run_checks == 'true'
       run: cargo build --target wasm32-unknown-unknown --release
 
     - name: Run tests
-      if: env.SKIP_TESTS != 'true'
+      if: steps.changes.outputs.run_checks == 'true' && env.SKIP_TESTS != 'true'
       run: cargo test

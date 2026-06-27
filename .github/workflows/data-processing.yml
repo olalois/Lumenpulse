@@ -3,12 +3,8 @@ name: Data Processing CI
 on:
   push:
     branches: [ "main" ]
-    paths:
-      - 'apps/data-processing/**'
   pull_request:
     branches: [ "main" ]
-    paths:
-      - 'apps/data-processing/**'
 
 jobs:
   data-processing-checks:
@@ -20,20 +16,42 @@ jobs:
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Detect data-processing changes
+      id: changes
+      run: |
+        if [ "${{ github.event_name }}" = "pull_request" ]; then
+          base_sha='${{ github.event.pull_request.base.sha }}'
+          head_sha='${{ github.event.pull_request.head.sha }}'
+        else
+          base_sha='${{ github.event.before }}'
+          head_sha='${{ github.sha }}'
+        fi
+
+        if git diff --name-only "$base_sha" "$head_sha" | grep -q '^apps/data-processing/'; then
+          echo 'run_checks=true' >> "$GITHUB_OUTPUT"
+        else
+          echo 'run_checks=false' >> "$GITHUB_OUTPUT"
+        fi
 
     - name: Set up Python 3.9
+      if: steps.changes.outputs.run_checks == 'true'
       uses: actions/setup-python@v5
       with:
         python-version: "3.9"
         cache: 'pip'
 
     - name: Install dependencies
+      if: steps.changes.outputs.run_checks == 'true'
       run: |
         python -m pip install --upgrade pip
         pip install flake8 pytest
         if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
 
     - name: Lint with flake8
+      if: steps.changes.outputs.run_checks == 'true'
       run: |
         # stop the build if there are Python syntax errors or undefined names
         flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
@@ -41,7 +59,7 @@ jobs:
         flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
 
     - name: Test with pytest
-      if: env.SKIP_TESTS != 'true'
+      if: steps.changes.outputs.run_checks == 'true' && env.SKIP_TESTS != 'true'
       # Checks if tests folder exists before running to prevent failure on empty repo
       run: |
         if [ -d "tests" ]; then

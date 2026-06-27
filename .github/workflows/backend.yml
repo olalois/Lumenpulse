@@ -3,12 +3,8 @@ name: Backend CI
 on:
   push:
     branches: [ "main" ]
-    paths:
-      - 'apps/backend/**'
   pull_request:
     branches: [ "main" ]
-    paths:
-      - 'apps/backend/**'
 
 jobs:
   backend-checks:
@@ -20,27 +16,49 @@ jobs:
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Detect backend changes
+      id: changes
+      run: |
+        if [ "${{ github.event_name }}" = "pull_request" ]; then
+          base_sha='${{ github.event.pull_request.base.sha }}'
+          head_sha='${{ github.event.pull_request.head.sha }}'
+        else
+          base_sha='${{ github.event.before }}'
+          head_sha='${{ github.sha }}'
+        fi
+
+        if git diff --name-only "$base_sha" "$head_sha" | grep -q '^apps/backend/'; then
+          echo 'run_checks=true' >> "$GITHUB_OUTPUT"
+        else
+          echo 'run_checks=false' >> "$GITHUB_OUTPUT"
+        fi
 
     - name: Setup Node.js
+      if: steps.changes.outputs.run_checks == 'true'
       uses: actions/setup-node@v4
       with:
         node-version: '20.x'
-        cache: 'npm'
-        cache-dependency-path: './apps/backend/package-lock.json'
 
     - name: Install dependencies
-      run: npm ci
+      if: steps.changes.outputs.run_checks == 'true'
+      run: npm install
 
     - name: Lint
+      if: steps.changes.outputs.run_checks == 'true'
       run: npm run lint
 
     - name: Type Check
+      if: steps.changes.outputs.run_checks == 'true'
       # Check if script exists to avoid failure if not set up yet
       run: if npm run | grep -q "type-check"; then npm run type-check; else echo "No type-check script found, skipping"; fi
 
     - name: Run Tests
-      if: env.SKIP_TESTS != 'true'
+      if: steps.changes.outputs.run_checks == 'true' && env.SKIP_TESTS != 'true'
       run: npm run test
 
     - name: Build
+      if: steps.changes.outputs.run_checks == 'true'
       run: npm run build
