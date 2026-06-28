@@ -58,6 +58,7 @@ import { AuditLogInterceptor } from './audit/interceptors/audit-log.interceptor'
 import { SorobanEventsModule } from './soroban-events/soroban-events.module';
 import { TreasuryModule } from './treasury/treasury.module';
 import { VestingWalletModule } from './vesting-wallet/vesting-wallet.module';
+import { ContractsModule } from './contracts/contracts.module';
 
 @Module({
   imports: [
@@ -126,6 +127,7 @@ import { VestingWalletModule } from './vesting-wallet/vesting-wallet.module';
     SorobanEventsModule,
     TreasuryModule,
     VestingWalletModule,
+    ContractsModule,
   ],
   controllers: [AppController, TestController, TestExceptionController],
   providers: [
