@@ -77,8 +77,7 @@ export class HealthService {
     const latencyIsHardDown = latencyBudget.overallState === 'hard_down';
     const latencyIsDegraded = latencyBudget.overallState === 'degraded';
 
-    const status =
-      !database.isUp || latencyIsHardDown ? 'error' : 'ok';
+    const status = !database.isUp || latencyIsHardDown ? 'error' : 'ok';
 
     const summary: LumenpulseHealthReport['summary'] =
       status === 'error'

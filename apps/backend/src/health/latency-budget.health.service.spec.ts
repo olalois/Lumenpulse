@@ -4,17 +4,8 @@ import { of, throwError } from 'rxjs';
 import { LatencyBudgetHealthService } from './latency-budget.health.service';
 
 // ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-/** Build a fake AxiosResponse-like observable that resolves after `delayMs`. */
-const resolveAfter = (delayMs: number) =>
-  new Promise<void>((resolve) => setTimeout(resolve, delayMs));
-
-// ---------------------------------------------------------------------------
 // Suite
 // ---------------------------------------------------------------------------
-
 describe('LatencyBudgetHealthService', () => {
   let service: LatencyBudgetHealthService;
   let httpService: { get: jest.Mock; post: jest.Mock };
@@ -32,7 +23,9 @@ describe('LatencyBudgetHealthService', () => {
       ],
     }).compile();
 
-    service = module.get<LatencyBudgetHealthService>(LatencyBudgetHealthService);
+    service = module.get<LatencyBudgetHealthService>(
+      LatencyBudgetHealthService,
+    );
 
     // Restore original env so tests are isolated
     delete process.env.HEALTH_HORIZON_LATENCY_DEGRADED_MS;
@@ -47,7 +40,9 @@ describe('LatencyBudgetHealthService', () => {
 
   it('returns overallState=ok when both probes respond quickly', async () => {
     httpService.get.mockReturnValue(of({ data: {}, status: 200 }));
-    httpService.post.mockReturnValue(of({ data: { result: { status: 'healthy' } }, status: 200 }));
+    httpService.post.mockReturnValue(
+      of({ data: { result: { status: 'healthy' } }, status: 200 }),
+    );
 
     const report = await service.getLatencyBudgetReport();
 
@@ -99,9 +94,7 @@ describe('LatencyBudgetHealthService', () => {
 
   it('reports overallState=hard_down even when one dep is ok', async () => {
     httpService.get.mockReturnValue(of({ data: {} }));
-    httpService.post.mockReturnValue(
-      throwError(() => new Error('timeout')),
-    );
+    httpService.post.mockReturnValue(throwError(() => new Error('timeout')));
 
     const report = await service.getLatencyBudgetReport();
 

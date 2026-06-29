@@ -1,7 +1,10 @@
 import { HttpService } from '@nestjs/axios';
 import { Injectable, Logger } from '@nestjs/common';
 import { firstValueFrom } from 'rxjs';
-import { latencyBudgetConfig, LatencyBudgetThreshold } from './latency-budget.config';
+import {
+  latencyBudgetConfig,
+  LatencyBudgetThreshold,
+} from './latency-budget.config';
 
 // ---------------------------------------------------------------------------
 // Public types
@@ -69,8 +72,7 @@ export class LatencyBudgetHealthService {
    */
   async getLatencyBudgetReport(): Promise<LatencyBudgetReport> {
     const network = (process.env.STELLAR_NETWORK ?? 'testnet') as
-      | 'testnet'
-      | 'mainnet';
+      'testnet' | 'mainnet';
 
     const horizonUrl =
       process.env.STELLAR_HORIZON_URL ?? DEFAULT_HORIZON_URLS[network];
@@ -79,7 +81,11 @@ export class LatencyBudgetHealthService {
 
     const [horizonResult, rpcResult] = await Promise.all([
       this.probeEndpoint('horizon', horizonUrl, latencyBudgetConfig.horizon),
-      this.probeRpc('sorobanRpc', sorobanRpcUrl, latencyBudgetConfig.sorobanRpc),
+      this.probeRpc(
+        'sorobanRpc',
+        sorobanRpcUrl,
+        latencyBudgetConfig.sorobanRpc,
+      ),
     ]);
 
     const dependencies: DependencyLatencyResult[] = [horizonResult, rpcResult];
