@@ -51,6 +51,7 @@ import { DeprecationInterceptor } from './common/interceptors/deprecation.interc
 import { SearchModule } from './search/search.module';
 import { ExportModule } from './export/export.module';
 import { SignalsModule } from './signals/signals.module';
+import { AnalyticsModule } from './analytics/analytics.module';
 import { AppConfigModule } from './config/config.module';
 import { CrowdfundModule } from './crowdfund/crowdfund.module';
 import { AuditModule } from './audit/audit.module';
@@ -118,6 +119,7 @@ import { WalletModule } from './wallet/wallet.module';
     OutboxModule,
     ExportModule,
     SignalsModule,
+    AnalyticsModule,
     TelegramBotModule,
     ModerationModule,
     SearchModule,
