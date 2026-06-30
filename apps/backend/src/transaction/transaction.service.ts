@@ -135,7 +135,8 @@ export class TransactionService {
 
       const response = await fetch(url);
       const data = (await response.json()) as
-        HorizonResponse | HorizonErrorResponse;
+        | HorizonResponse
+        | HorizonErrorResponse;
 
       if (!response.ok) {
         const errorDetail = (data as HorizonErrorResponse).detail;

@@ -70,11 +70,11 @@ export class CacheService {
 
     this.logger.debug(`Cache MISS for key: ${key}`);
     this.recordCacheMiss(key);
-    
+
     const startTime = Date.now();
     const value = await fetcher();
     const fetchDuration = Date.now() - startTime;
-    
+
     await this.set(key, value, ttl);
     this.recordCacheLatency(key, fetchDuration);
     return value;
@@ -211,9 +211,7 @@ export class CacheService {
       }
       const store = (this.cacheManager as { store?: { client?: RedisClient } })
         .store;
-      const keys = store?.client
-        ? await store.client.keys(pattern)
-        : [];
+      const keys = store?.client ? await store.client.keys(pattern) : [];
 
       if (keys && Array.isArray(keys) && keys.length > 0) {
         for (const key of keys) {
@@ -241,28 +239,36 @@ export class CacheService {
 
   private recordCacheHit(key: string): void {
     if (!this.metricsService) return;
-    
+
     const keyType = this.getKeyType(key);
-    this.metricsService.incrementCounter('cache_hits_total', { key_type: keyType });
+    this.metricsService.incrementCounter('cache_hits_total', {
+      key_type: keyType,
+    });
   }
 
   private recordCacheMiss(key: string): void {
     if (!this.metricsService) return;
-    
+
     const keyType = this.getKeyType(key);
-    this.metricsService.incrementCounter('cache_misses_total', { key_type: keyType });
+    this.metricsService.incrementCounter('cache_misses_total', {
+      key_type: keyType,
+    });
   }
 
   private recordCacheLatency(key: string, durationMs: number): void {
     if (!this.metricsService) return;
-    
+
     const keyType = this.getKeyType(key);
-    this.metricsService.recordHistogram('cache_fetch_duration_ms', durationMs, { key_type: keyType });
+    this.metricsService.recordHistogram('cache_fetch_duration_ms', durationMs, {
+      key_type: keyType,
+    });
   }
 
   private getKeyType(key: string): string {
-    if (key.startsWith(STELLAR_ACCOUNT_BALANCE_PREFIX)) return 'account_balance';
-    if (key.startsWith(STELLAR_ACCOUNT_OPERATIONS_PREFIX)) return 'account_operations';
+    if (key.startsWith(STELLAR_ACCOUNT_BALANCE_PREFIX))
+      return 'account_balance';
+    if (key.startsWith(STELLAR_ACCOUNT_OPERATIONS_PREFIX))
+      return 'account_operations';
     if (key.startsWith(CONTRACT_READ_PREFIX)) return 'contract_read';
     if (key.startsWith(STELLAR_ASSETS_CACHE_PREFIX)) return 'stellar_assets';
     if (key.startsWith(NEWS_CACHE_KEY)) return 'news';
@@ -274,11 +280,11 @@ export class CacheService {
    */
   getCacheHitRate(): number {
     if (!this.metricsService) return 0;
-    
+
     const hits = this.metricsService.getCounterValue('cache_hits_total');
     const misses = this.metricsService.getCounterValue('cache_misses_total');
     const total = hits + misses;
-    
+
     return total > 0 ? hits / total : 0;
   }
 }
