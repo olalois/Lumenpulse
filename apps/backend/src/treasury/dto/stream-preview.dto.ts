@@ -1,12 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import {
-  IsString,
-  IsNotEmpty,
-  IsOptional,
-  IsNumber,
-  Min,
-} from 'class-validator';
+import { IsString, IsNotEmpty, IsOptional, IsInt, Min } from 'class-validator';
 import { Type } from 'class-transformer';
+import { IsStellarAddress } from '../../common/validators/stellar.validators';
 
 /**
  * Request body for the treasury stream preview endpoint.
@@ -18,7 +13,10 @@ export class StreamPreviewDto {
     example: 'GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN',
   })
   @IsString()
-  @IsNotEmpty()
+  @IsNotEmpty({ message: 'beneficiary is required' })
+  @IsStellarAddress({
+    message: 'beneficiary must be a valid Stellar address (G...)',
+  })
   beneficiary: string;
 
   @ApiPropertyOptional({
@@ -28,8 +26,8 @@ export class StreamPreviewDto {
     example: 1735689600,
   })
   @IsOptional()
-  @IsNumber()
-  @Min(0)
+  @IsInt({ message: 'atTime must be an integer' })
+  @Min(0, { message: 'atTime must be at least 0' })
   @Type(() => Number)
   atTime?: number;
 }
