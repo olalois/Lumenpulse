@@ -325,7 +325,7 @@ export class TreasurySorobanClient {
       error &&
       typeof error === 'object' &&
       'getStatus' in error &&
-      typeof (error as { getStatus: unknown }).getStatus === 'function'
+      typeof error.getStatus === 'function'
     ) {
       return error as unknown as Error;
     }

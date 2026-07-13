@@ -27,6 +27,7 @@ from src.db.postgres_service import PostgresService
 from src.ingestion.rpc_benchmark import RPCProviderBenchmark
 from src.round_analyzer import _round_analyzer_job
 from src.snapshots.onchain_kpi_snapshot import run_onchain_kpi_snapshot_job
+from src.metadata_drift_detector import MetadataDriftDetector
 
 
 logger = setup_logger(__name__)
@@ -286,6 +287,29 @@ def _contributor_reputation_snapshot_job() -> None:
             f"Contributor reputation snapshot job failed: {exc}",
             exc_info=True,
         )
+
+
+def _metadata_drift_detector_job() -> None:
+    """Scheduled wrapper for MetadataDriftDetector (#882).
+
+    Recomputes chain-derived project/milestone state from the ContractEvent
+    log and diffs it against ProjectView/ProjectMilestone. Read-only with
+    respect to source data — findings are persisted separately for review.
+    Errors are caught so the scheduler keeps running.
+    """
+    try:
+        detector = MetadataDriftDetector()
+        report = detector.run_and_persist(
+            limit=int(os.getenv("METADATA_DRIFT_PROJECT_LIMIT", "500"))
+        )
+        logger.info(
+            "Metadata drift detection: projects_checked=%d projects_with_drift=%d findings=%d",
+            report.projects_checked,
+            report.projects_with_drift,
+            len(report.findings),
+        )
+    except Exception as exc:
+        logger.error(f"Metadata drift detector job failed: {exc}", exc_info=True)
 
 class AnalyticsScheduler:
 
